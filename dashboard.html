@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Julio Trading — Signal Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c12;
+    --surface: #0e1420;
+    --border: #1a2235;
+    --accent-green: #00e676;
+    --accent-red: #ff1744;
+    --accent-blue: #2979ff;
+    --accent-gold: #ffd740;
+    --text: #e8edf5;
+    --text-dim: #4a5568;
+    --text-mid: #8899aa;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(41,121,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(41,121,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  header {
+    padding: 28px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(8,12,18,0.9);
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: var(--accent-blue);
+    text-transform: uppercase;
+  }
+
+  .logo span { color: var(--accent-gold); }
+
+  .status-dot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-mid);
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    box-shadow: 0 0 8px var(--accent-green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  main { padding: 40px; max-width: 1400px; margin: 0 auto; }
+
+  /* KPI row */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .kpi:hover { border-color: var(--accent-blue); }
+
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-blue), transparent);
+  }
+
+  .kpi-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-mid);
+    font-family: var(--mono);
+    margin-bottom: 10px;
+  }
+
+  .kpi-value {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .kpi-value.green { color: var(--accent-green); }
+  .kpi-value.red { color: var(--accent-red); }
+  .kpi-value.gold { color: var(--accent-gold); }
+
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-family: var(--mono);
+  }
+
+  /* Charts row */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 40px;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .card-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--text-mid);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::before {
+    content: '';
+    width: 3px; height: 12px;
+    background: var(--accent-blue);
+    border-radius: 2px;
+  }
+
+  /* Bar charts */
+  .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 50px;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .bar-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-mid);
+    text-align: right;
+  }
+
+  .bar-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s ease;
+  }
+
+  .bar-fill.buy { background: var(--accent-green); }
+  .bar-fill.sell { background: var(--accent-red); }
+  .bar-fill.mixed { background: var(--accent-blue); }
+
+  .bar-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    text-align: right;
+  }
+
+  /* Signal log table */
+  .log-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 40px;
+  }
+
+  .log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .filter-tabs {
+    display: flex;
+    gap: 8px;
+  }
+
+  .tab {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tab.active, .tab:hover {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: white;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  th {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    border-bottom: 1px solid rgba(26,34,53,0.5);
+  }
+
+  tr:hover td { background: rgba(41,121,255,0.04); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .badge.buy { background: rgba(0,230,118,0.12); color: var(--accent-green); border: 1px solid rgba(0,230,118,0.3); }
+  .badge.sell { background: rgba(255,23,68,0.12); color: var(--accent-red); border: 1px solid rgba(255,23,68,0.3); }
+
+  .symbol-nq { color: var(--accent-blue); }
+  .symbol-gold { color: var(--accent-gold); }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+
+  .empty-icon { font-size: 40px; margin-bottom: 16px; }
+
+  /* Refresh button */
+  .refresh-btn {
+    padding: 8px 20px;
+    background: transparent;
+    border: 1px solid var(--accent-blue);
+    color: var(--accent-blue);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+
+  .refresh-btn:hover {
+    background: var(--accent-blue);
+    color: white;
+  }
+
+  /* Heatmap */
+  .heatmap {
+    display: grid;
+    grid-template-columns: 50px repeat(24, 1fr);
+    gap: 3px;
+    font-family: var(--mono);
+    font-size: 9px;
+  }
+
+  .heatmap-cell {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: transparent;
+    transition: all 0.2s;
+  }
+
+  .heatmap-cell:hover { color: white; transform: scale(1.3); }
+
+  .heatmap-label {
+    display: flex;
+    align-items: center;
+    color: var(--text-dim);
+    font-size: 9px;
+  }
+
+  .heatmap-hour {
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+  }
+
+  @media (max-width: 900px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .charts-grid { grid-template-columns: 1fr; }
+    main { padding: 20px; }
+    header { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">JULIO <span>TRADING</span> — SIGNAL DASHBOARD</div>
+  <div class="status-dot">
+    <div class="dot"></div>
+    <span id="last-update">Cargando...</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-label">Total Señales</div>
+      <div class="kpi-value" id="kpi-total">0</div>
+      <div class="kpi-sub">acumuladas</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Señales BUY</div>
+      <div class="kpi-value green" id="kpi-buy">0</div>
+      <div class="kpi-sub" id="kpi-buy-pct">—</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Señales SELL</div>
+      <div class="kpi-value red" id="kpi-sell">0</div>
+      <div class="kpi-sub" id="kpi-sell-pct">—</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">NQ Señales</div>
+      <div class="kpi-value" id="kpi-nq">0</div>
+      <div class="kpi-sub">NQ1! / MNQ1!</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Gold Señales</div>
+      <div class="kpi-value gold" id="kpi-gold">0</div>
+      <div class="kpi-sub">XAUUSD / GC1!</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+
+    <!-- By hour -->
+    <div class="chart-card">
+      <div class="card-title">Señales por Hora (CST)</div>
+      <div class="bar-chart" id="chart-hours"></div>
+    </div>
+
+    <!-- By day -->
+    <div class="chart-card">
+      <div class="card-title">Señales por Día de la Semana</div>
+      <div class="bar-chart" id="chart-days"></div>
+    </div>
+
+  </div>
+
+  <!-- Signal log -->
+  <div class="log-card">
+    <div class="log-header">
+      <div class="card-title" style="margin-bottom:0">Historial de Señales</div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="filter-tabs">
+          <button class="tab active" onclick="filterSignals('ALL')">Todas</button>
+          <button class="tab" onclick="filterSignals('NQ')">NQ</button>
+          <button class="tab" onclick="filterSignals('GOLD')">Gold</button>
+          <button class="tab" onclick="filterSignals('BUY')">Buy</button>
+          <button class="tab" onclick="filterSignals('SELL')">Sell</button>
+        </div>
+        <button class="refresh-btn" onclick="loadSignals()">↻ REFRESH</button>
+      </div>
+    </div>
+
+    <div id="signals-table-wrapper">
+      <div class="empty">
+        <div class="empty-icon">📡</div>
+        Esperando señales del servidor...
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const SERVER_URL = window.location.origin;
+let allSignals = [];
+let activeFilter = 'ALL';
+
+async function loadSignals() {
+  try {
+    const res = await fetch(`${SERVER_URL}/signals`);
+    allSignals = await res.json();
+    updateDashboard();
+    document.getElementById('last-update').textContent =
+      'Actualizado: ' + new Date().toLocaleTimeString('es-MX');
+  } catch(e) {
+    document.getElementById('last-update').textContent = 'Sin conexión al servidor';
+  }
+}
+
+function updateDashboard() {
+  const signals = allSignals;
+  const total = signals.length;
+  const buys  = signals.filter(s => s.action?.toUpperCase() === 'BUY').length;
+  const sells = signals.filter(s => s.action?.toUpperCase() === 'SELL').length;
+  const nq    = signals.filter(s => s.symbol?.toUpperCase().includes('NQ')).length;
+  const gold  = signals.filter(s =>
+    s.symbol?.toUpperCase().includes('XAU') ||
+    s.symbol?.toUpperCase().includes('GC') ||
+    s.symbol?.toUpperCase().includes('GOLD')
+  ).length;
+
+  document.getElementById('kpi-total').textContent = total;
+  document.getElementById('kpi-buy').textContent   = buys;
+  document.getElementById('kpi-sell').textContent  = sells;
+  document.getElementById('kpi-nq').textContent    = nq;
+  document.getElementById('kpi-gold').textContent  = gold;
+
+  document.getElementById('kpi-buy-pct').textContent  = total ? Math.round(buys/total*100)+'% del total' : '—';
+  document.getElementById('kpi-sell-pct').textContent = total ? Math.round(sells/total*100)+'% del total' : '—';
+
+  renderHourChart(signals);
+  renderDayChart(signals);
+  renderTable(signals, activeFilter);
+}
+
+function renderHourChart(signals) {
+  const hours = {};
+  for (let h = 8; h <= 16; h++) hours[h] = { buy: 0, sell: 0 };
+
+  signals.forEach(s => {
+    if (!s.timestamp) return;
+    const h = new Date(s.timestamp).getHours();
+    if (h in hours) {
+      if (s.action?.toUpperCase() === 'BUY') hours[h].buy++;
+      else hours[h].sell++;
+    }
+  });
+
+  const maxVal = Math.max(...Object.values(hours).map(v => v.buy + v.sell), 1);
+  const labels = { 8:'8am', 9:'9am', 10:'10am', 11:'11am', 12:'12pm', 13:'1pm', 14:'2pm', 15:'3pm', 16:'4pm' };
+
+  const el = document.getElementById('chart-hours');
+  el.innerHTML = Object.entries(hours).map(([h, v]) => {
+    const total = v.buy + v.sell;
+    const pct = Math.round(total / maxVal * 100);
+    return `
+      <div class="bar-row">
+        <div class="bar-label">${labels[h]}</div>
+        <div class="bar-track">
+          <div class="bar-fill ${v.buy >= v.sell ? 'buy' : 'sell'}" style="width:${pct}%"></div>
+        </div>
+        <div class="bar-count">${total}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderDayChart(signals) {
+  const days = { 1:0, 2:0, 3:0, 4:0, 5:0 };
+  const names = { 1:'Lunes', 2:'Martes', 3:'Miérc', 4:'Jueves', 5:'Viernes' };
+
+  signals.forEach(s => {
+    if (!s.timestamp) return;
+    const d = new Date(s.timestamp).getDay();
+    if (d in days) days[d]++;
+  });
+
+  const maxVal = Math.max(...Object.values(days), 1);
+  const el = document.getElementById('chart-days');
+  el.innerHTML = Object.entries(days).map(([d, count]) => {
+    const pct = Math.round(count / maxVal * 100);
+    return `
+      <div class="bar-row">
+        <div class="bar-label">${names[d]}</div>
+        <div class="bar-track">
+          <div class="bar-fill mixed" style="width:${pct}%"></div>
+        </div>
+        <div class="bar-count">${count}</div>
+      </div>`;
+  }).join('');
+}
+
+function filterSignals(filter) {
+  activeFilter = filter;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderTable(allSignals, filter);
+}
+
+function renderTable(signals, filter) {
+  let filtered = [...signals].reverse();
+
+  if (filter === 'NQ')   filtered = filtered.filter(s => s.symbol?.toUpperCase().includes('NQ'));
+  if (filter === 'GOLD') filtered = filtered.filter(s =>
+    s.symbol?.toUpperCase().includes('XAU') ||
+    s.symbol?.toUpperCase().includes('GC') ||
+    s.symbol?.toUpperCase().includes('GOLD')
+  );
+  if (filter === 'BUY')  filtered = filtered.filter(s => s.action?.toUpperCase() === 'BUY');
+  if (filter === 'SELL') filtered = filtered.filter(s => s.action?.toUpperCase() === 'SELL');
+
+  const wrapper = document.getElementById('signals-table-wrapper');
+
+  if (filtered.length === 0) {
+    wrapper.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">📡</div>
+        ${signals.length === 0 ? 'Esperando primeras señales...' : 'Sin señales con este filtro'}
+      </div>`;
+    return;
+  }
+
+  const rows = filtered.map(s => {
+    const action = s.action?.toUpperCase() || '—';
+    const sym = s.symbol || '—';
+    const isNQ = sym.toUpperCase().includes('NQ');
+    const symClass = isNQ ? 'symbol-nq' : 'symbol-gold';
+    const ts = s.timestamp ? new Date(s.timestamp).toLocaleString('es-MX', {
+      month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit'
+    }) : '—';
+
+    return `<tr>
+      <td>${ts}</td>
+      <td class="${symClass}">${sym}</td>
+      <td><span class="badge ${action.toLowerCase()}">${action}</span></td>
+      <td>${s.entry || '—'}</td>
+      <td style="color:var(--accent-red)">${s.sl || '—'}</td>
+      <td style="color:var(--accent-green)">${s.tp || '—'}</td>
+      <td>${s.timeframe || '1M'}</td>
+    </tr>`;
+  }).join('');
+
+  wrapper.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Symbol</th>
+          <th>Acción</th>
+          <th>Entry</th>
+          <th>SL</th>
+          <th>TP</th>
+          <th>TF</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// Auto refresh every 30 seconds
+loadSignals();
+setInterval(loadSignals, 30000);
+</script>
+
+</body>
+</html>
