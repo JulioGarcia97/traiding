@@ -75,8 +75,6 @@ def webhook():
             "entry":     data.get("entry", ""),
             "sl":        "",
             "tp":        "",
-            "sl_exit":   "",
-            "tp_exit":   "",
             "result":    "pending",
             "notes":     ""
         }
@@ -105,7 +103,7 @@ def update_trade(trade_id):
         body   = request.get_json(force=True) or {}
         for t in trades:
             if t["id"] == trade_id:
-                for field in ["sl", "tp", "sl_exit", "tp_exit", "result", "notes"]:
+                for field in ["sl", "tp", "result", "notes"]:
                     if field in body:
                         t[field] = body[field]
                 save_trades(trades)
@@ -134,8 +132,6 @@ def add_trade():
             "entry":    body.get("entry", ""),
             "sl":       body.get("sl", ""),
             "tp":       body.get("tp", ""),
-            "sl_exit":  body.get("sl_exit", ""),
-            "tp_exit":  body.get("tp_exit", ""),
             "result":   body.get("result", "pending"),
             "notes":    body.get("notes", "")
         }

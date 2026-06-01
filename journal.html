@@ -125,8 +125,6 @@ tr:hover td { background:rgba(41,121,255,.03); }
         <div class="fg"><label>Entry</label><input type="number" id="f-entry" placeholder="21540.25" step="0.01"></div>
         <div class="fg"><label>SL</label><input type="number" id="f-sl" placeholder="21480.00" step="0.01"></div>
         <div class="fg"><label>TP</label><input type="number" id="f-tp" placeholder="21660.75" step="0.01"></div>
-        <div class="fg"><label>SL Exit</label><input type="number" id="f-slexit" placeholder="precio exit" step="0.01"></div>
-        <div class="fg"><label>TP Exit</label><input type="number" id="f-tpexit" placeholder="precio exit" step="0.01"></div>
         <div class="fg"><label>Resultado</label>
           <select id="f-res">
             <option value="pending">Pendiente</option>
@@ -153,7 +151,6 @@ tr:hover td { background:rgba(41,121,255,.03); }
           <tr>
             <th>Fecha/Hora</th><th>Symbol</th><th>Dir</th>
             <th>Entry</th><th>SL</th><th>TP</th>
-            <th>SL Exit</th><th>TP Exit</th>
             <th>Resultado</th><th></th>
           </tr>
         </thead>
@@ -214,25 +211,21 @@ async function addTrade() {
     entry:    document.getElementById('f-entry').value,
     sl:       document.getElementById('f-sl').value,
     tp:       document.getElementById('f-tp').value,
-    sl_exit:  document.getElementById('f-slexit').value,
-    tp_exit:  document.getElementById('f-tpexit').value,
     result:   document.getElementById('f-res').value,
   };
   await fetch(API + '/trades', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  ['f-entry','f-sl','f-tp','f-slexit','f-tpexit'].forEach(id => document.getElementById(id).value = '');
+  ['f-entry','f-sl','f-tp'].forEach(id => document.getElementById(id).value = '');
   await load();
 }
 
 async function saveTrade(id) {
   const sl      = document.getElementById('sl-'+id).value;
   const tp      = document.getElementById('tp-'+id).value;
-  const sl_exit = document.getElementById('slexit-'+id).value;
-  const tp_exit = document.getElementById('tpexit-'+id).value;
   const result  = document.getElementById('res-'+id).value;
   await fetch(API + '/trades/' + id, {
     method:'PATCH',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ sl, tp, sl_exit, tp_exit, result })
+    body: JSON.stringify({ sl, tp, result })
   });
   await load();
 }
@@ -309,8 +302,6 @@ function renderTable() {
       <td>${t.entry || '—'}</td>
       <td><input class="edit-input" id="sl-${t.id}" value="${t.sl}" placeholder="SL"></td>
       <td><input class="edit-input" id="tp-${t.id}" value="${t.tp}" placeholder="TP"></td>
-      <td><input class="edit-input" id="slexit-${t.id}" value="${t.sl_exit}" placeholder="exit"></td>
-      <td><input class="edit-input" id="tpexit-${t.id}" value="${t.tp_exit}" placeholder="exit"></td>
       <td>
         <select class="res-sel" id="res-${t.id}">
           <option value="pending" ${t.result==='pending'?'selected':''}>Pendiente</option>
