@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 import requests
 import json
 import os
@@ -7,112 +7,157 @@ import pytz
 
 app = Flask(__name__)
 
-# ── Telegram config ──────────────────────────────────────────────
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8942691723:AAEzwjFcYyxwwmcKeVwcfTjooPJlBgdLpZU")
+TELEGRAM_TOKEN  = os.environ.get("TELEGRAM_TOKEN",  "8942691723:AAEzwjFcYyxwwmcKeVwcfTjooPJlBgdLpZU")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "916243970")
+TRADES_FILE = "trades.json"
 
-# ── Signal log file ──────────────────────────────────────────────
-LOG_FILE = "signals.json"
+# ── Helpers ──────────────────────────────────────────────────────
+
+def load_trades():
+    if os.path.exists(TRADES_FILE):
+        try:
+            with open(TRADES_FILE, "r") as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+def save_trades(trades):
+    with open(TRADES_FILE, "w") as f:
+        json.dump(trades, f, indent=2)
 
 def send_telegram(message: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message,
-        "parse_mode": "HTML"
-    }
     try:
-        r = requests.post(url, json=payload, timeout=10)
+        r = requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}, timeout=10)
         return r.status_code == 200
     except Exception as e:
         print(f"Telegram error: {e}")
         return False
 
-def log_signal(data: dict):
-    signals = []
-    if os.path.exists(LOG_FILE):
-        try:
-            with open(LOG_FILE, "r") as f:
-                signals = json.load(f)
-        except:
-            signals = []
-    signals.append(data)
-    with open(LOG_FILE, "w") as f:
-        json.dump(signals, f, indent=2)
-
-def format_message(data: dict) -> str:
-    action = data.get("action", "").upper()
-    symbol = data.get("symbol", "")
-    entry  = data.get("entry", "")
-    sl     = data.get("sl", "")
-    tp     = data.get("tp", "")
-    tf     = data.get("timeframe", "1M")
-
-    cst = pytz.timezone("America/Chicago")
-    now = datetime.now(cst).strftime("%I:%M %p CST")
-
+def format_message(trade: dict) -> str:
+    action = trade.get("action", "").upper()
+    symbol = trade.get("symbol", "")
+    entry  = trade.get("entry", "—")
+    cst    = pytz.timezone("America/Chicago")
+    now    = datetime.now(cst).strftime("%I:%M %p CST")
     emoji  = "🟢" if action == "BUY" else "🔴"
-    action_label = "COMPRA" if action == "BUY" else "VENTA"
-
-    # TP ratio label
-    ratio = "1:2" if "NQ" in symbol.upper() else "1:1"
-
-    lines = [
-        f"{emoji} <b>{action_label} — {symbol}</b>",
+    label  = "COMPRA" if action == "BUY" else "VENTA"
+    ratio  = "1:2" if "NQ" in symbol.upper() else "1:1"
+    tid    = trade.get("id", "")
+    journal_url = f"https://web-production-085bf.up.railway.app/journal"
+    return "\n".join([
+        f"{emoji} <b>{label} — {symbol}</b>",
         f"",
         f"💰 Entry:  <code>{entry}</code>",
-        f"🛑 SL:     <code>{sl}</code>",
-        f"🎯 TP:     <code>{tp}</code>  ({ratio})",
-        f"⏱ TF:     {tf}",
+        f"⚖️ Ratio:  {ratio}",
+        f"⏱ TF:     1M",
         f"🕐 Hora:   {now}",
-    ]
-    return "\n".join(lines)
+        f"",
+        f"📋 <a href='{journal_url}'>Registrar SL / TP / Resultado</a>",
+    ])
 
-# ── Webhook endpoint ─────────────────────────────────────────────
+# ── Webhook — recibe señal de TradingView ────────────────────────
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
         data = request.get_json(force=True)
         if not data:
-            return jsonify({"error": "No JSON received"}), 400
+            return jsonify({"error": "no json"}), 400
 
-        print(f"[SIGNAL] {json.dumps(data)}")
-
-        # Add timestamp
         cst = pytz.timezone("America/Chicago")
-        data["timestamp"] = datetime.now(cst).isoformat()
+        trade = {
+            "id":        int(datetime.now().timestamp() * 1000),
+            "ts":        datetime.now(cst).isoformat(),
+            "symbol":    data.get("symbol", ""),
+            "action":    data.get("action", "").upper(),
+            "entry":     data.get("entry", ""),
+            "sl":        "",
+            "tp":        "",
+            "sl_exit":   "",
+            "tp_exit":   "",
+            "result":    "pending",
+            "notes":     ""
+        }
 
-        # Log signal
-        log_signal(data)
+        trades = load_trades()
+        trades.insert(0, trade)
+        save_trades(trades)
 
-        # Send Telegram
-        message = format_message(data)
-        ok = send_telegram(message)
-
-        return jsonify({"ok": ok, "received": data}), 200
+        send_telegram(format_message(trade))
+        return jsonify({"ok": True, "id": trade["id"]}), 200
 
     except Exception as e:
         print(f"[ERROR] {e}")
         return jsonify({"error": str(e)}), 500
 
-# ── Signals history endpoint ─────────────────────────────────────
-@app.route("/signals", methods=["GET"])
-def get_signals():
-    if os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "r") as f:
-            return jsonify(json.load(f))
-    return jsonify([])
+# ── API trades ───────────────────────────────────────────────────
 
-# ── Health check ─────────────────────────────────────────────────
+@app.route("/trades", methods=["GET"])
+def get_trades():
+    return jsonify(load_trades())
+
+@app.route("/trades/<int:trade_id>", methods=["PATCH"])
+def update_trade(trade_id):
+    try:
+        trades = load_trades()
+        body   = request.get_json(force=True) or {}
+        for t in trades:
+            if t["id"] == trade_id:
+                for field in ["sl", "tp", "sl_exit", "tp_exit", "result", "notes"]:
+                    if field in body:
+                        t[field] = body[field]
+                save_trades(trades)
+                return jsonify({"ok": True, "trade": t})
+        return jsonify({"error": "not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/trades/<int:trade_id>", methods=["DELETE"])
+def delete_trade(trade_id):
+    trades = load_trades()
+    trades = [t for t in trades if t["id"] != trade_id]
+    save_trades(trades)
+    return jsonify({"ok": True})
+
+@app.route("/trades", methods=["POST"])
+def add_trade():
+    try:
+        body = request.get_json(force=True) or {}
+        cst  = pytz.timezone("America/Chicago")
+        trade = {
+            "id":       int(datetime.now().timestamp() * 1000),
+            "ts":       body.get("ts", datetime.now(cst).isoformat()),
+            "symbol":   body.get("symbol", ""),
+            "action":   body.get("action", "").upper(),
+            "entry":    body.get("entry", ""),
+            "sl":       body.get("sl", ""),
+            "tp":       body.get("tp", ""),
+            "sl_exit":  body.get("sl_exit", ""),
+            "tp_exit":  body.get("tp_exit", ""),
+            "result":   body.get("result", "pending"),
+            "notes":    body.get("notes", "")
+        }
+        trades = load_trades()
+        trades.insert(0, trade)
+        save_trades(trades)
+        return jsonify({"ok": True, "trade": trade}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ── Journal UI ───────────────────────────────────────────────────
+
+@app.route("/journal", methods=["GET"])
+def journal():
+    with open("journal.html", "r") as f:
+        return Response(f.read(), mimetype="text/html")
+
+# ── Health ───────────────────────────────────────────────────────
+
 @app.route("/", methods=["GET"])
 def health():
     return jsonify({"status": "online", "service": "Julio Trading Alerts"})
-
-# ── Dashboard ────────────────────────────────────────────────────
-@app.route("/dashboard", methods=["GET"])
-def dashboard():
-    with open("dashboard.html", "r") as f:
-        return f.read(), 200, {"Content-Type": "text/html"}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
