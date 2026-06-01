@@ -371,7 +371,7 @@ def weekly_report():
 
 @app.route("/journal", methods=["GET"])
 def journal():
-    with open("journal.html") as f:
+    with open("journal.html", encoding="utf-8", errors="replace") as f:
         return Response(f.read(), mimetype="text/html")
 
 @app.route("/", methods=["GET"])
