@@ -230,6 +230,7 @@ tr:hover td { background:var(--cobalt-dim); }
     <div class="add-card">
       <div class="add-title">Agregar señal manual</div>
       <div class="form-row">
+        <div class="fg" style="grid-column: span 2"><label>Fecha y Hora</label><input type="datetime-local" id="f-ts"></div>
         <div class="fg"><label>Símbolo</label>
           <select id="f-sym"><option value="NQ1!">NQ1!</option><option value="XAUUSD">XAUUSD</option></select></div>
         <div class="fg"><label>Acción</label>
@@ -308,6 +309,13 @@ let trades = [];
 let filter = 'ALL';
 
 async function load() {
+  // Pre-fill datetime with current local time
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const local = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const tsField = document.getElementById('f-ts');
+  if (tsField && !tsField.value) tsField.value = local;
+
   try {
     const r = await fetch(API + '/trades');
     trades = await r.json();
@@ -319,7 +327,10 @@ async function load() {
 }
 
 async function addTrade() {
+  const tsRaw = document.getElementById('f-ts').value;
+  const ts = tsRaw ? new Date(tsRaw).toISOString() : new Date().toISOString();
   const body = {
+    ts,
     symbol: document.getElementById('f-sym').value,
     action: document.getElementById('f-act').value,
     entry:  document.getElementById('f-entry').value,
