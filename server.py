@@ -108,9 +108,8 @@ def send_signal_message(trade: dict):
         f"⏱ TF:     1M",
         f"🕐 Hora:   {now}",
         f"",
-        f"📋 Registra SL y TP respondiendo:",
-        f"<code>sl &lt;valor&gt; tp &lt;valor&gt;</code>",
-        f"Ejemplo: <code>sl 21480 tp 21660</code>",
+        f"📋 Responde con SL y TP:",
+        f"<code>sl 21480 tp 21660</code>",
     ])
 
     markup = {
@@ -181,12 +180,19 @@ def handle_update(update: dict):
         msg  = update["message"]
         text = msg.get("text", "").strip().lower()
 
-        # parse: "sl 21480 tp 21660"
+        # parse: "sl 21480 tp 21660" or "sl <21480> tp <21660>"
         if "sl" in text and "tp" in text:
             try:
-                parts = text.replace("sl", "").replace("tp", " ").split()
-                sl_val = parts[0].strip()
-                tp_val = parts[1].strip()
+                # strip angle brackets and any extra chars, keep only digits and dots
+                clean = text.replace("<","").replace(">","").replace(",",".")
+                parts = clean.replace("sl", "").replace("tp", " ").split()
+                parts = [p.strip() for p in parts if p.strip()]
+                sl_val = parts[0]
+                tp_val = parts[1]
+
+                # validate they are numbers
+                float(sl_val)
+                float(tp_val)
 
                 # find most recent pending trade
                 trades = load_trades()
@@ -195,12 +201,12 @@ def handle_update(update: dict):
                         t["sl"] = sl_val
                         t["tp"] = tp_val
                         save_trades(trades)
-                        send_message(f"✔️ SL <code>{sl_val}</code> y TP <code>{tp_val}</code> guardados para {t['symbol']} {t['action']}.")
+                        send_message(f"✔️ SL <code>{sl_val}</code> y TP <code>{tp_val}</code> guardados para {t['symbol']} {t['action']}.\n\nAhora toca el botón de resultado.")
                         return
 
                 send_message("No encontré un trade pendiente sin SL/TP. Verifica el journal.")
-            except:
-                send_message("Formato incorrecto. Usa: <code>sl 21480 tp 21660</code>")
+            except (IndexError, ValueError):
+                send_message("Formato incorrecto. Usa:\n<code>sl 21480 tp 21660</code>")
 
 # ── Routes ───────────────────────────────────────────────────────
 
