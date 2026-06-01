@@ -20,8 +20,8 @@ scheduler.start()
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN",   "8942691723:AAEzwjFcYyxwwmcKeVwcfTjooPJlBgdLpZU")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "916243970")
 BASE_URL         = os.environ.get("BASE_URL", "https://web-production-085bf.up.railway.app")
-TRADES_FILE      = "trades.json"
-STATE_FILE       = "bot_state.json"   # tracks pending SL/TP capture per trade
+TRADES_FILE      = "/data/trades.json"
+STATE_FILE       = "/data/bot_state.json"
 
 # ── Persistence ──────────────────────────────────────────────────
 
