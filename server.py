@@ -51,6 +51,11 @@ def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
 
+def is_nq(symbol: str) -> bool:
+    """Detect NQ regardless of how TV sends the ticker."""
+    s = symbol.upper()
+    return any(x in s for x in ["NQ", "USTEC", "MNQ", "NAS100", "US100", "NASDAQ"])
+
 # ── Telegram helpers ─────────────────────────────────────────────
 
 def tg_post(method, payload):
@@ -92,7 +97,7 @@ def send_signal_message(trade: dict):
     now    = datetime.now(cst).strftime("%I:%M %p CST")
     emoji  = "🟢" if action == "BUY" else "🔴"
     label  = "COMPRA" if action == "BUY" else "VENTA"
-    ratio  = "1:2" if "NQ" in symbol.upper() else "1:1"
+    ratio  = "1:2" if is_nq(symbol) else "1:1"
     tid    = trade["id"]
 
     text = "\n".join([
@@ -307,7 +312,7 @@ def weekly_report():
         losses = [t for t in done if t["result"] == "loss"]
         wr     = round(len(wins)/len(done)*100) if done else 0
 
-        nq_done   = [t for t in done if "NQ" in t.get("symbol","")]
+        nq_done   = [t for t in done if is_nq(t.get("symbol",""))]
         gold_done = [t for t in done if "XAU" in t.get("symbol","") or "GC" in t.get("symbol","")]
         nq_wr     = round(len([t for t in nq_done   if t["result"]=="win"])/len(nq_done)*100)   if nq_done   else 0
         gold_wr   = round(len([t for t in gold_done if t["result"]=="win"])/len(gold_done)*100) if gold_done else 0

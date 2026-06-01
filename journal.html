@@ -301,7 +301,8 @@ tr:hover td { background:var(--cobalt-dim); }
 </main>
 
 <script>
-const API = '';
+const NQ_SYMBOLS = ["NQ","USTEC","MNQ","NAS100","US100","NASDAQ"];
+function isNQ(sym){ return NQ_SYMBOLS.some(x => (sym||"").toUpperCase().includes(x)); }
 let trades = [];
 let filter = 'ALL';
 
@@ -369,8 +370,8 @@ function renderKPIs() {
   const wins   = trades.filter(t => t.result === 'win').length;
   const losses = trades.filter(t => t.result === 'loss').length;
   const wr     = done.length ? Math.round(wins/done.length*100) : 0;
-  const nqD    = done.filter(t => t.symbol === 'NQ1!');
-  const goldD  = done.filter(t => t.symbol === 'XAUUSD');
+  const nqD    = done.filter(t => isNQ(t.symbol));
+  const goldD  = done.filter(t => !isNQ(t.symbol));
   const nqWR   = nqD.length   ? Math.round(nqD.filter(t=>t.result==='win').length/nqD.length*100)    : 0;
   const goldWR = goldD.length ? Math.round(goldD.filter(t=>t.result==='win').length/goldD.length*100) : 0;
   const pending = trades.filter(t => t.result === 'pending').length;
@@ -390,7 +391,7 @@ function renderKPIs() {
 
 function renderTable() {
   let list = [...trades];
-  if (filter==='NQ1!'||filter==='XAUUSD') list = list.filter(t=>t.symbol===filter);
+  if (filter==='NQ1!'||filter==='XAUUSD') list = list.filter(t=> filter==='NQ1!' ? isNQ(t.symbol) : !isNQ(t.symbol));
   else if(['win','loss','pending','skip'].includes(filter)) list = list.filter(t=>t.result===filter);
 
   const body = document.getElementById('tbl-body');
@@ -401,8 +402,8 @@ function renderTable() {
   body.innerHTML = list.map(t => {
     const d  = new Date(t.ts);
     const ds = d.toLocaleDateString('es-MX',{month:'short',day:'2-digit'})+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-    const sc = t.symbol==='NQ1!'?'b-nq':'b-gold';
-    const sl = t.symbol==='NQ1!'?'NQ':'GOLD';
+    const sc = isNQ(t.symbol)?'b-nq':'b-gold';
+    const sl = isNQ(t.symbol)?'NQ':'GOLD';
     const rc = {win:'b-win',loss:'b-loss',pending:'b-pending',skip:'b-skip'}[t.result]||'b-pending';
     return `<tr>
       <td style="color:var(--text-mid);font-size:10px;">${ds}</td>
@@ -455,10 +456,10 @@ function renderAnalysis() {
   document.getElementById('chart-days').innerHTML=Object.entries(days).map(([d,v])=>barRow(dNames[d],v.n?Math.round(v.w/v.n*100):0,v.n,maxD)).join('');
 
   function symChart(elId, sym) {
-    const d=done.filter(t=>t.symbol===sym);
-    const isNQ = sym === 'NQ1!';
-    const keys = isNQ ? [9,10,11] : HOUR_KEYS;
-    const labels = isNQ ? {9:'9am',10:'10am',11:'11am'} : hLabels;
+    const nq = sym === 'NQ1!';
+    const d = nq ? done.filter(t=>isNQ(t.symbol)) : done.filter(t=>!isNQ(t.symbol));
+    const keys = nq ? [9,10,11] : HOUR_KEYS;
+    const labels = nq ? {9:'9am',10:'10am',11:'11am'} : hLabels;
     const h={};keys.forEach(i=>h[i]={w:0,n:0});
     d.forEach(t=>{const hh=new Date(t.ts).getHours();if(hh in h){h[hh].n++;if(t.result==='win')h[hh].w++;}});
     const mx=Math.max(...Object.values(h).map(v=>v.n),1);
