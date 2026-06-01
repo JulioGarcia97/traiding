@@ -8,6 +8,18 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
+@app.after_request
+def add_cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
+@app.route("/trades", methods=["OPTIONS"])
+@app.route("/trades/<int:trade_id>", methods=["OPTIONS"])
+def options_handler(**kwargs):
+    return "", 204
+
 # ── Weekly scheduler ─────────────────────────────────────────────
 def scheduled_weekly_report():
     with app.test_request_context():
