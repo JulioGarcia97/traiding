@@ -369,6 +369,12 @@ def weekly_report():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/reset-db", methods=["POST"])
+def reset_db():
+    save_trades([])
+    save_state({})
+    return jsonify({"ok": True, "message": "Base de datos reiniciada"})
+
 @app.route("/journal", methods=["GET"])
 def journal():
     with open("journal.html", encoding="utf-8", errors="replace") as f:
