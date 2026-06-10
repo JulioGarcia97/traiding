@@ -229,10 +229,19 @@ def webhook():
         if not data:
             return jsonify({"error": "no json"}), 400
 
-        cst = pytz.timezone("America/Chicago")
+        # ── Horario activo: 7:00am - 10:30pm CST ──
+        cst  = pytz.timezone("America/Chicago")
+        now  = datetime.now(cst)
+        hour = now.hour
+        minute = now.minute
+        # Blocked: 22:30 - 23:59 and 00:00 - 06:59
+        is_blocked = (hour < 7) or (hour == 22 and minute >= 30) or (hour == 23)
+        if is_blocked:
+            print(f"[FILTERED] Signal outside active hours: {now.strftime('%H:%M CST')}")
+            return jsonify({"ok": False, "reason": "outside active hours"}), 200
         trade = {
-            "id":     int(datetime.now().timestamp() * 1000),
-            "ts":     datetime.now(cst).isoformat(),
+            "id":     int(now.timestamp() * 1000),
+            "ts":     now.isoformat(),
             "symbol": data.get("symbol", ""),
             "action": data.get("action", "").upper(),
             "entry":  data.get("entry", ""),
